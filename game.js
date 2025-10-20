@@ -674,24 +674,29 @@ function spawnInitialEnemies() {
 }
 
 function spawnRandomEnemy(type) {
-    let x, y, inSpawnRoom;
+    let x, y;
     let attempts = 0;
     const maxAttempts = 50;
+    let validPosition = false;
 
     // Find a valid spawn position (not in spawn room)
-    do {
+    while (!validPosition && attempts < maxAttempts) {
         x = Math.random() * (config.width - 200) + 50;
         y = Math.random() * (config.height - 100) + 50;
         attempts++;
 
-        // Check if in spawn room
-        const tileX = Math.floor(x / config.tileSize);
-        const tileY = Math.floor(y / config.tileSize);
-        inSpawnRoom = dungeon.isInSpawnRoom(tileX, tileY);
+        // Check if position is valid (not a wall and not in spawn room)
+        if (!dungeon.isWall(x, y, 25, 25)) {
+            const tileX = Math.floor(x / config.tileSize);
+            const tileY = Math.floor(y / config.tileSize);
 
-    } while ((dungeon.isWall(x, y, 25, 25) || inSpawnRoom) && attempts < maxAttempts);
+            if (!dungeon.isInSpawnRoom(tileX, tileY)) {
+                validPosition = true;
+            }
+        }
+    }
 
-    if (attempts < maxAttempts) {
+    if (validPosition) {
         // Scale enemy type based on player level
         if (!type) {
             if (player.level >= 5) {
