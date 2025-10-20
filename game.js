@@ -5,7 +5,12 @@ const config = {
     width: 800,
     height: 600,
     tileSize: 40,
-    fps: 60
+    fps: 60,
+    // Camera
+    camera: {
+        x: 0,
+        y: 0
+    }
 };
 
 // Game State
@@ -69,9 +74,11 @@ class Player {
         else if (dy > 0) this.direction = 'down';
         else if (dy < 0) this.direction = 'up';
 
-        // Keep player in bounds
-        this.x = Math.max(0, Math.min(config.width - this.width, this.x));
-        this.y = Math.max(0, Math.min(config.height - this.height, this.y));
+        // Keep player in dungeon bounds
+        const maxX = dungeon.width * config.tileSize - this.width;
+        const maxY = dungeon.height * config.tileSize - this.height;
+        this.x = Math.max(0, Math.min(maxX, this.x));
+        this.y = Math.max(0, Math.min(maxY, this.y));
     }
 
     attack(targetX, targetY) {
@@ -250,31 +257,35 @@ class Player {
     }
 
     draw(ctx) {
+        // Apply camera offset
+        const screenX = this.x - config.camera.x;
+        const screenY = this.y - config.camera.y;
+
         // Draw shadow
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
-        ctx.ellipse(this.x + this.width / 2, this.y + this.height + 5,
+        ctx.ellipse(screenX + this.width / 2, screenY + this.height + 5,
                     this.width / 2, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw player body
         ctx.fillStyle = '#4ecca3';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(screenX, screenY, this.width, this.height);
 
         // Draw player face/direction indicator
         ctx.fillStyle = '#45b393';
         switch(this.direction) {
             case 'up':
-                ctx.fillRect(this.x + 8, this.y, 14, 10);
+                ctx.fillRect(screenX + 8, screenY, 14, 10);
                 break;
             case 'down':
-                ctx.fillRect(this.x + 8, this.y + 20, 14, 10);
+                ctx.fillRect(screenX + 8, screenY + 20, 14, 10);
                 break;
             case 'left':
-                ctx.fillRect(this.x, this.y + 8, 10, 14);
+                ctx.fillRect(screenX, screenY + 8, 10, 14);
                 break;
             case 'right':
-                ctx.fillRect(this.x + 20, this.y + 8, 10, 14);
+                ctx.fillRect(screenX + 20, screenY + 8, 10, 14);
                 break;
         }
 
@@ -293,8 +304,9 @@ class Player {
     drawSword(ctx, progress) {
         ctx.save();
 
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y + this.height / 2;
+        // Apply camera offset
+        const centerX = this.x + this.width / 2 - config.camera.x;
+        const centerY = this.y + this.height / 2 - config.camera.y;
 
         ctx.translate(centerX, centerY);
 
@@ -458,21 +470,25 @@ class Enemy {
     draw(ctx) {
         if (!this.alive) return;
 
+        // Apply camera offset
+        const screenX = this.x - config.camera.x;
+        const screenY = this.y - config.camera.y;
+
         // Draw shadow
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
-        ctx.ellipse(this.x + this.width / 2, this.y + this.height + 5,
+        ctx.ellipse(screenX + this.width / 2, screenY + this.height + 5,
                     this.width / 2, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw enemy body
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(screenX, screenY, this.width, this.height);
 
         // Draw eyes
         ctx.fillStyle = '#fff';
-        ctx.fillRect(this.x + 5, this.y + 8, 5, 5);
-        ctx.fillRect(this.x + 15, this.y + 8, 5, 5);
+        ctx.fillRect(screenX + 5, screenY + 8, 5, 5);
+        ctx.fillRect(screenX + 15, screenY + 8, 5, 5);
 
         // Draw health bar
         const healthBarWidth = this.width;
@@ -480,10 +496,10 @@ class Enemy {
         const healthPercent = this.health / this.maxHealth;
 
         ctx.fillStyle = '#333';
-        ctx.fillRect(this.x, this.y - 10, healthBarWidth, healthBarHeight);
+        ctx.fillRect(screenX, screenY - 10, healthBarWidth, healthBarHeight);
 
         ctx.fillStyle = '#e94560';
-        ctx.fillRect(this.x, this.y - 10, healthBarWidth * healthPercent, healthBarHeight);
+        ctx.fillRect(screenX, screenY - 10, healthBarWidth * healthPercent, healthBarHeight);
     }
 }
 
@@ -491,10 +507,14 @@ class Enemy {
 class Dungeon {
     constructor() {
         this.tiles = [];
-        this.width = Math.floor(config.width / config.tileSize);
-        this.height = Math.floor(config.height / config.tileSize);
-        this.spawnRoomX = this.width - 4; // Spawn room on the right side
-        this.spawnRoomY = Math.floor(this.height / 2);
+        // Make dungeon 2x larger than viewport
+        this.width = Math.floor(config.width / config.tileSize) * 2;
+        this.height = Math.floor(config.height / config.tileSize) * 2;
+
+        // Entrance area on the left side
+        this.entranceX = 3;
+        this.entranceY = Math.floor(this.height / 2);
+
         this.generate();
     }
 
@@ -507,8 +527,8 @@ class Dungeon {
                 if (x === 0 || x === this.width - 1 || y === 0 || y === this.height - 1) {
                     this.tiles[y][x] = 1;
                 }
-                // Random obstacles (but not in spawn room)
-                else if (Math.random() < 0.08 && !this.isInSpawnRoom(x, y)) {
+                // Random obstacles (but not in entrance area)
+                else if (Math.random() < 0.08 && !this.isInEntranceArea(x, y)) {
                     this.tiles[y][x] = 1;
                 }
                 // Floor
@@ -518,61 +538,51 @@ class Dungeon {
             }
         }
 
-        // Create spawn room - clear area on the right side
-        this.createSpawnRoom();
-
-        // Create entrance to main dungeon from spawn room
-        this.createDoorway();
+        // Create entrance area
+        this.createEntranceArea();
     }
 
-    isInSpawnRoom(x, y) {
-        return x >= this.spawnRoomX - 2 && x <= this.spawnRoomX + 2 &&
-               y >= this.spawnRoomY - 2 && y <= this.spawnRoomY + 2;
+    isInEntranceArea(x, y) {
+        // Entrance is a larger safe area on the left side
+        return x >= this.entranceX - 3 && x <= this.entranceX + 5 &&
+               y >= this.entranceY - 4 && y <= this.entranceY + 4;
     }
 
-    createSpawnRoom() {
-        // Clear spawn room area
-        for (let y = this.spawnRoomY - 2; y <= this.spawnRoomY + 2; y++) {
-            for (let x = this.spawnRoomX - 2; x <= this.spawnRoomX + 2; x++) {
+    createEntranceArea() {
+        // Clear entrance area
+        for (let y = this.entranceY - 4; y <= this.entranceY + 4; y++) {
+            for (let x = this.entranceX - 3; x <= this.entranceX + 5; x++) {
                 if (y >= 0 && y < this.height && x >= 0 && x < this.width) {
                     this.tiles[y][x] = 0;
                 }
             }
         }
 
-        // Add walls around spawn room (except entrance)
-        for (let y = this.spawnRoomY - 3; y <= this.spawnRoomY + 3; y++) {
+        // Create a wall/barrier to separate entrance from dungeon
+        for (let y = this.entranceY - 5; y <= this.entranceY + 5; y++) {
             if (y >= 0 && y < this.height) {
-                // Right wall
-                if (this.spawnRoomX + 3 < this.width) {
-                    this.tiles[y][this.spawnRoomX + 3] = 1;
-                }
-                // Top and bottom walls
-                if (y === this.spawnRoomY - 3 || y === this.spawnRoomY + 3) {
-                    for (let x = this.spawnRoomX - 3; x <= this.spawnRoomX + 3; x++) {
-                        if (x >= 0 && x < this.width) {
-                            this.tiles[y][x] = 1;
-                        }
-                    }
+                const wallX = this.entranceX + 6;
+                if (wallX < this.width) {
+                    this.tiles[y][wallX] = 1;
                 }
             }
         }
-    }
 
-    createDoorway() {
-        // Create entrance from spawn room to main dungeon
-        const doorX = this.spawnRoomX - 3;
-        for (let y = this.spawnRoomY - 1; y <= this.spawnRoomY + 1; y++) {
-            if (y >= 0 && y < this.height && doorX >= 0) {
-                this.tiles[y][doorX] = 0;
+        // Create doorway/gate to enter the dungeon
+        for (let y = this.entranceY - 1; y <= this.entranceY + 1; y++) {
+            if (y >= 0 && y < this.height) {
+                const doorX = this.entranceX + 6;
+                if (doorX < this.width) {
+                    this.tiles[y][doorX] = 0;
+                }
             }
         }
     }
 
     getSpawnPosition() {
         return {
-            x: this.spawnRoomX * config.tileSize,
-            y: this.spawnRoomY * config.tileSize
+            x: this.entranceX * config.tileSize,
+            y: this.entranceY * config.tileSize
         };
     }
 
@@ -602,22 +612,28 @@ class Dungeon {
     }
 
     draw(ctx) {
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
+        // Calculate visible tile range based on camera position
+        const startX = Math.floor(config.camera.x / config.tileSize);
+        const startY = Math.floor(config.camera.y / config.tileSize);
+        const endX = Math.min(this.width, startX + Math.ceil(config.width / config.tileSize) + 1);
+        const endY = Math.min(this.height, startY + Math.ceil(config.height / config.tileSize) + 1);
+
+        for (let y = Math.max(0, startY); y < endY; y++) {
+            for (let x = Math.max(0, startX); x < endX; x++) {
                 const tile = this.tiles[y][x];
-                const px = x * config.tileSize;
-                const py = y * config.tileSize;
-                const inSpawnRoom = this.isInSpawnRoom(x, y);
+                const px = x * config.tileSize - config.camera.x;
+                const py = y * config.tileSize - config.camera.y;
+                const inEntranceArea = this.isInEntranceArea(x, y);
 
                 if (tile === 1) {
                     // Wall
-                    ctx.fillStyle = inSpawnRoom ? '#3d5a4f' : '#2d3748';
+                    ctx.fillStyle = inEntranceArea ? '#3d5a4f' : '#2d3748';
                     ctx.fillRect(px, py, config.tileSize, config.tileSize);
-                    ctx.strokeStyle = inSpawnRoom ? '#2a4039' : '#1a202c';
+                    ctx.strokeStyle = inEntranceArea ? '#2a4039' : '#1a202c';
                     ctx.strokeRect(px, py, config.tileSize, config.tileSize);
                 } else {
-                    // Floor - spawn room has greenish tint
-                    if (inSpawnRoom) {
+                    // Floor - entrance area has greenish tint
+                    if (inEntranceArea) {
                         ctx.fillStyle = (x + y) % 2 === 0 ? '#4a6858' : '#3d5a4f';
                     } else {
                         ctx.fillStyle = (x + y) % 2 === 0 ? '#4a5568' : '#3d4653';
@@ -642,11 +658,14 @@ function init() {
     // Create dungeon
     dungeon = new Dungeon();
 
-    // Create player in spawn room
+    // Create player in entrance area
     const spawnPos = dungeon.getSpawnPosition();
     player = new Player(spawnPos.x - 15, spawnPos.y - 15);
 
-    // Spawn initial enemies (not in spawn room)
+    // Initialize camera position centered on player
+    updateCamera();
+
+    // Spawn initial enemies (not in entrance area)
     spawnInitialEnemies();
 
     // Setup input handlers
@@ -679,18 +698,22 @@ function spawnRandomEnemy(type) {
     const maxAttempts = 50;
     let validPosition = false;
 
-    // Find a valid spawn position (not in spawn room)
+    // Calculate dungeon size in pixels
+    const dungeonWidth = dungeon.width * config.tileSize;
+    const dungeonHeight = dungeon.height * config.tileSize;
+
+    // Find a valid spawn position (not in entrance area)
     while (!validPosition && attempts < maxAttempts) {
-        x = Math.random() * (config.width - 200) + 50;
-        y = Math.random() * (config.height - 100) + 50;
+        x = Math.random() * (dungeonWidth - 200) + 100;
+        y = Math.random() * (dungeonHeight - 200) + 100;
         attempts++;
 
-        // Check if position is valid (not a wall and not in spawn room)
+        // Check if position is valid (not a wall and not in entrance area)
         if (!dungeon.isWall(x, y, 25, 25)) {
             const tileX = Math.floor(x / config.tileSize);
             const tileY = Math.floor(y / config.tileSize);
 
-            if (!dungeon.isInSpawnRoom(tileX, tileY)) {
+            if (!dungeon.isInEntranceArea(tileX, tileY)) {
                 validPosition = true;
             }
         }
@@ -782,8 +805,8 @@ function setupInput() {
         if (!gameState.gameStarted || gameState.isPaused) return;
 
         const rect = config.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        const mouseX = e.clientX - rect.left + config.camera.x;
+        const mouseY = e.clientY - rect.top + config.camera.y;
 
         player.attack(mouseX, mouseY);
     });
@@ -890,6 +913,19 @@ function handleInput() {
     }
 }
 
+function updateCamera() {
+    // Center camera on player
+    const targetX = player.x + player.width / 2 - config.width / 2;
+    const targetY = player.y + player.height / 2 - config.height / 2;
+
+    // Clamp camera to dungeon bounds
+    const maxX = dungeon.width * config.tileSize - config.width;
+    const maxY = dungeon.height * config.tileSize - config.height;
+
+    config.camera.x = Math.max(0, Math.min(maxX, targetX));
+    config.camera.y = Math.max(0, Math.min(maxY, targetY));
+}
+
 function update() {
     // Don't update game if paused or not started
     if (gameState.isPaused || !gameState.gameStarted) {
@@ -897,6 +933,9 @@ function update() {
     }
 
     handleInput();
+
+    // Update camera to follow player
+    updateCamera();
 
     // Update enemies
     enemies.forEach(enemy => {
