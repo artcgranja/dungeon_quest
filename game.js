@@ -886,8 +886,8 @@ function handleInput() {
 }
 
 function update() {
-    // Don't update game if paused
-    if (gameState.isPaused) {
+    // Don't update game if paused or not started
+    if (gameState.isPaused || !gameState.gameStarted) {
         return;
     }
 
@@ -993,6 +993,11 @@ function updateLeaderboard() {
 
 // Update leaderboard periodically and on floor change
 function updateLeaderboardOnProgress() {
+    // Only update if game has started
+    if (!gameState.gameStarted) {
+        return;
+    }
+
     // Save current progress to show in leaderboard
     const currentProgress = {
         level: player.level,
