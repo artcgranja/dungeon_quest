@@ -674,7 +674,7 @@ function spawnInitialEnemies() {
 }
 
 function spawnRandomEnemy(type) {
-    let x, y;
+    let x, y, inSpawnRoom;
     let attempts = 0;
     const maxAttempts = 50;
 
@@ -687,7 +687,7 @@ function spawnRandomEnemy(type) {
         // Check if in spawn room
         const tileX = Math.floor(x / config.tileSize);
         const tileY = Math.floor(y / config.tileSize);
-        const inSpawnRoom = dungeon.isInSpawnRoom(tileX, tileY);
+        inSpawnRoom = dungeon.isInSpawnRoom(tileX, tileY);
 
     } while ((dungeon.isWall(x, y, 25, 25) || inSpawnRoom) && attempts < maxAttempts);
 
