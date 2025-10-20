@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dungeon Quest",
+  "version": "1.0.0",
+  "identifier": "com.dungeonquest.app",
+  "build": {
+    "beforeDevCommand": "python3 -m http.server 8000",
+    "devUrl": "http://localhost:8000",
+    "beforeBuildCommand": "",
+    "frontendDist": ".."
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Dungeon Quest",
+        "width": 850,
+        "height": 750,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

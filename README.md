@@ -17,6 +17,29 @@ A top-down action RPG inspired by classic Zelda games. Fight monsters in procedu
 
 ### Running the Game
 
+**Option 1: Tauri Desktop App (Recommended)**
+
+This project is now configured as a Tauri application for a native desktop experience!
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Run in development mode:**
+   ```bash
+   npm run dev
+   ```
+   This will open the game in a native desktop window with developer tools.
+
+3. **Build for production:**
+   ```bash
+   npm run build
+   ```
+   The installer will be created in `src-tauri/target/release/bundle/`
+
+**Option 2: Web Browser**
+
 1. Open `index.html` in a modern web browser (Chrome, Firefox, Safari, Edge)
 2. The game will start automatically
 
@@ -62,10 +85,26 @@ A top-down action RPG inspired by classic Zelda games. Fight monsters in procedu
 
 ## Technical Details
 
+### Frontend
 - Built with HTML5 Canvas and vanilla JavaScript
-- No external dependencies required
-- Runs entirely in the browser
+- No frontend frameworks or dependencies
 - Responsive UI with real-time stat updates
+- Works both as a web app and desktop app
+
+### Desktop App (Tauri)
+- **Framework:** Tauri v2
+- **Backend:** Rust
+- **Bundle size:** Much smaller than Electron alternatives
+- **Performance:** Native performance with minimal overhead
+- **Cross-platform:** Builds for Windows, macOS, and Linux
+
+### Prerequisites for Building
+- Node.js and npm (for Tauri CLI)
+- Rust and Cargo (for Tauri backend)
+- Platform-specific build tools:
+  - **Linux:** `webkit2gtk`, `libgtk-3-dev`, `libayatana-appindicator3-dev`
+  - **macOS:** Xcode Command Line Tools
+  - **Windows:** Microsoft Visual Studio C++ Build Tools
 
 ## Future Enhancements
 
@@ -79,8 +118,31 @@ Potential features for future versions:
 - More enemy varieties
 - Special abilities and magic
 
+## Project Structure
+
+```
+dungeon_quest/
+├── index.html          # Main game HTML file
+├── game.js             # Game logic and engine
+├── package.json        # NPM configuration
+├── src-tauri/          # Tauri desktop app configuration
+│   ├── src/
+│   │   ├── main.rs     # Rust main entry point
+│   │   └── lib.rs      # Tauri app setup
+│   ├── Cargo.toml      # Rust dependencies
+│   ├── tauri.conf.json # Tauri configuration
+│   ├── build.rs        # Build script
+│   ├── icons/          # App icons
+│   └── capabilities/   # Tauri permissions
+└── README.md
+```
+
 ## Credits
 
-Created as a Zelda-inspired dungeon crawler game using HTML5 Canvas.
+Created as a Zelda-inspired dungeon crawler game using HTML5 Canvas and Tauri.
+
+- **Game Engine:** HTML5 Canvas with vanilla JavaScript
+- **Desktop Framework:** Tauri v2
+- **Inspiration:** Classic top-down Zelda games
 
 Enjoy your adventure in the dungeon!
