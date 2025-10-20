@@ -13,12 +13,16 @@ const gameState = {
     keys: {},
     lastAttackTime: 0,
     attackCooldown: 500,
+    attackSpeed: 1.0, // 1.0 = 100% attack speed
     levelUpPoints: 0,
     monstersKilled: 0,
     currentFloor: 1,
     enemiesKilledThisFloor: 0,
     enemiesToClearFloor: 10,
-    isPaused: false
+    isPaused: false,
+    mouseX: 0,
+    mouseY: 0,
+    gameStarted: false
 };
 
 // Player Class
@@ -70,10 +74,22 @@ class Player {
         this.y = Math.max(0, Math.min(config.height - this.height, this.y));
     }
 
-    attack() {
+    attack(targetX, targetY) {
         const now = Date.now();
-        if (now - gameState.lastAttackTime < gameState.attackCooldown) {
+        const actualCooldown = gameState.attackCooldown / gameState.attackSpeed;
+
+        if (now - gameState.lastAttackTime < actualCooldown) {
             return;
+        }
+
+        // Update direction based on mouse position
+        const dx = targetX - (this.x + this.width / 2);
+        const dy = targetY - (this.y + this.height / 2);
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            this.direction = dx > 0 ? 'right' : 'left';
+        } else {
+            this.direction = dy > 0 ? 'down' : 'up';
         }
 
         this.isAttacking = true;
@@ -176,8 +192,8 @@ class Player {
                     </div>
                     <div class="upgrade-button" onclick="upgradeAttribute('attackSpeed')">
                         <h3>Attack Speed</h3>
-                        <div class="upgrade-value">-50ms</div>
-                        <p>Cooldown</p>
+                        <div class="upgrade-value">+10%</div>
+                        <p>Faster Attacks</p>
                     </div>
                     <div class="upgrade-button" onclick="upgradeAttribute('attackRange')">
                         <h3>Attack Range</h3>
@@ -206,10 +222,8 @@ class Player {
         // Save to leaderboard before game over
         saveToLeaderboard();
 
-        // Show game over with stats
-        const message = `Game Over!\n\nFinal Stats:\nLevel: ${this.level}\nFloor Reached: ${gameState.currentFloor}\nTotal Kills: ${gameState.monstersKilled}\n\nReloading...`;
-        alert(message);
-        location.reload();
+        // Show death screen
+        showDeathScreen();
     }
 
     updateUI() {
@@ -221,6 +235,7 @@ class Player {
         document.getElementById('speed').textContent = this.speed.toFixed(1);
         document.getElementById('kills').textContent = gameState.monstersKilled;
         document.getElementById('attackRange').textContent = this.attackRange;
+        document.getElementById('attackSpeed').textContent = `${(gameState.attackSpeed * 100).toFixed(0)}%`;
 
         // Update floor progress
         document.getElementById('currentFloor').textContent = gameState.currentFloor;
@@ -478,6 +493,8 @@ class Dungeon {
         this.tiles = [];
         this.width = Math.floor(config.width / config.tileSize);
         this.height = Math.floor(config.height / config.tileSize);
+        this.spawnRoomX = this.width - 4; // Spawn room on the right side
+        this.spawnRoomY = Math.floor(this.height / 2);
         this.generate();
     }
 
@@ -490,8 +507,8 @@ class Dungeon {
                 if (x === 0 || x === this.width - 1 || y === 0 || y === this.height - 1) {
                     this.tiles[y][x] = 1;
                 }
-                // Random obstacles
-                else if (Math.random() < 0.08) {
+                // Random obstacles (but not in spawn room)
+                else if (Math.random() < 0.08 && !this.isInSpawnRoom(x, y)) {
                     this.tiles[y][x] = 1;
                 }
                 // Floor
@@ -501,16 +518,62 @@ class Dungeon {
             }
         }
 
-        // Clear starting area around player spawn
-        const centerX = Math.floor(this.width / 2);
-        const centerY = Math.floor(this.height / 2);
-        for (let y = centerY - 2; y <= centerY + 2; y++) {
-            for (let x = centerX - 2; x <= centerX + 2; x++) {
+        // Create spawn room - clear area on the right side
+        this.createSpawnRoom();
+
+        // Create entrance to main dungeon from spawn room
+        this.createDoorway();
+    }
+
+    isInSpawnRoom(x, y) {
+        return x >= this.spawnRoomX - 2 && x <= this.spawnRoomX + 2 &&
+               y >= this.spawnRoomY - 2 && y <= this.spawnRoomY + 2;
+    }
+
+    createSpawnRoom() {
+        // Clear spawn room area
+        for (let y = this.spawnRoomY - 2; y <= this.spawnRoomY + 2; y++) {
+            for (let x = this.spawnRoomX - 2; x <= this.spawnRoomX + 2; x++) {
                 if (y >= 0 && y < this.height && x >= 0 && x < this.width) {
                     this.tiles[y][x] = 0;
                 }
             }
         }
+
+        // Add walls around spawn room (except entrance)
+        for (let y = this.spawnRoomY - 3; y <= this.spawnRoomY + 3; y++) {
+            if (y >= 0 && y < this.height) {
+                // Right wall
+                if (this.spawnRoomX + 3 < this.width) {
+                    this.tiles[y][this.spawnRoomX + 3] = 1;
+                }
+                // Top and bottom walls
+                if (y === this.spawnRoomY - 3 || y === this.spawnRoomY + 3) {
+                    for (let x = this.spawnRoomX - 3; x <= this.spawnRoomX + 3; x++) {
+                        if (x >= 0 && x < this.width) {
+                            this.tiles[y][x] = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    createDoorway() {
+        // Create entrance from spawn room to main dungeon
+        const doorX = this.spawnRoomX - 3;
+        for (let y = this.spawnRoomY - 1; y <= this.spawnRoomY + 1; y++) {
+            if (y >= 0 && y < this.height && doorX >= 0) {
+                this.tiles[y][doorX] = 0;
+            }
+        }
+    }
+
+    getSpawnPosition() {
+        return {
+            x: this.spawnRoomX * config.tileSize,
+            y: this.spawnRoomY * config.tileSize
+        };
     }
 
     isWall(x, y, width, height) {
@@ -544,16 +607,21 @@ class Dungeon {
                 const tile = this.tiles[y][x];
                 const px = x * config.tileSize;
                 const py = y * config.tileSize;
+                const inSpawnRoom = this.isInSpawnRoom(x, y);
 
                 if (tile === 1) {
                     // Wall
-                    ctx.fillStyle = '#2d3748';
+                    ctx.fillStyle = inSpawnRoom ? '#3d5a4f' : '#2d3748';
                     ctx.fillRect(px, py, config.tileSize, config.tileSize);
-                    ctx.strokeStyle = '#1a202c';
+                    ctx.strokeStyle = inSpawnRoom ? '#2a4039' : '#1a202c';
                     ctx.strokeRect(px, py, config.tileSize, config.tileSize);
                 } else {
-                    // Floor
-                    ctx.fillStyle = (x + y) % 2 === 0 ? '#4a5568' : '#3d4653';
+                    // Floor - spawn room has greenish tint
+                    if (inSpawnRoom) {
+                        ctx.fillStyle = (x + y) % 2 === 0 ? '#4a6858' : '#3d5a4f';
+                    } else {
+                        ctx.fillStyle = (x + y) % 2 === 0 ? '#4a5568' : '#3d4653';
+                    }
                     ctx.fillRect(px, py, config.tileSize, config.tileSize);
                 }
             }
@@ -574,13 +642,11 @@ function init() {
     // Create dungeon
     dungeon = new Dungeon();
 
-    // Create player in center
-    player = new Player(
-        config.width / 2 - 15,
-        config.height / 2 - 15
-    );
+    // Create player in spawn room
+    const spawnPos = dungeon.getSpawnPosition();
+    player = new Player(spawnPos.x - 15, spawnPos.y - 15);
 
-    // Spawn initial enemies
+    // Spawn initial enemies (not in spawn room)
     spawnInitialEnemies();
 
     // Setup input handlers
@@ -612,12 +678,18 @@ function spawnRandomEnemy(type) {
     let attempts = 0;
     const maxAttempts = 50;
 
-    // Find a valid spawn position
+    // Find a valid spawn position (not in spawn room)
     do {
-        x = Math.random() * (config.width - 100) + 50;
+        x = Math.random() * (config.width - 200) + 50;
         y = Math.random() * (config.height - 100) + 50;
         attempts++;
-    } while (dungeon.isWall(x, y, 25, 25) && attempts < maxAttempts);
+
+        // Check if in spawn room
+        const tileX = Math.floor(x / config.tileSize);
+        const tileY = Math.floor(y / config.tileSize);
+        const inSpawnRoom = dungeon.isInSpawnRoom(tileX, tileY);
+
+    } while ((dungeon.isWall(x, y, 25, 25) || inSpawnRoom) && attempts < maxAttempts);
 
     if (attempts < maxAttempts) {
         // Scale enemy type based on player level
@@ -649,15 +721,16 @@ function advanceToNextFloor() {
     // Regenerate dungeon
     dungeon.generate();
 
-    // Reset player position to center
-    player.x = config.width / 2 - 15;
-    player.y = config.height / 2 - 15;
+    // Reset player position to spawn room
+    const spawnPos = dungeon.getSpawnPosition();
+    player.x = spawnPos.x - 15;
+    player.y = spawnPos.y - 15;
 
     // Heal player partially
     player.health = Math.min(player.maxHealth, player.health + Math.floor(player.maxHealth * 0.3));
     player.updateUI();
 
-    // Spawn enemies for new floor
+    // Spawn enemies for new floor (not in spawn room)
     setTimeout(() => {
         const enemyCount = Math.min(5 + gameState.currentFloor, 10);
         for (let i = 0; i < enemyCount; i++) {
@@ -686,15 +759,28 @@ function setupInput() {
     // Keyboard input
     document.addEventListener('keydown', (e) => {
         gameState.keys[e.key.toLowerCase()] = true;
-
-        if (e.key === ' ' || e.key === 'Spacebar') {
-            e.preventDefault();
-            player.attack();
-        }
     });
 
     document.addEventListener('keyup', (e) => {
         gameState.keys[e.key.toLowerCase()] = false;
+    });
+
+    // Mouse tracking
+    config.canvas.addEventListener('mousemove', (e) => {
+        const rect = config.canvas.getBoundingClientRect();
+        gameState.mouseX = e.clientX - rect.left;
+        gameState.mouseY = e.clientY - rect.top;
+    });
+
+    // Mouse click to attack
+    config.canvas.addEventListener('click', (e) => {
+        if (!gameState.gameStarted || gameState.isPaused) return;
+
+        const rect = config.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        player.attack(mouseX, mouseY);
     });
 
     // Click to upgrade stats
@@ -746,7 +832,7 @@ function upgradeAttribute(attribute) {
             player.speed += 1;
             break;
         case 'attackSpeed':
-            gameState.attackCooldown = Math.max(100, gameState.attackCooldown - 50);
+            gameState.attackSpeed += 0.10; // +10% attack speed
             break;
         case 'attackRange':
             player.attackRange += 10;
@@ -948,5 +1034,29 @@ function updateLeaderboardOnProgress() {
     }
 }
 
-// Start the game when page loads
+// Game Screens Management
+function startGame() {
+    document.getElementById('startScreen').style.display = 'none';
+    gameState.gameStarted = true;
+}
+
+function showDeathScreen() {
+    gameState.isPaused = true;
+    gameState.gameStarted = false;
+
+    // Update death screen stats
+    document.getElementById('deathLevel').textContent = player.level;
+    document.getElementById('deathFloor').textContent = gameState.currentFloor;
+    document.getElementById('deathKills').textContent = gameState.monstersKilled;
+    document.getElementById('deathScore').textContent = calculateScore();
+
+    // Show death screen
+    document.getElementById('deathScreen').style.display = 'flex';
+}
+
+function restartGame() {
+    location.reload();
+}
+
+// Initialize game when page loads (but don't start)
 window.addEventListener('load', init);

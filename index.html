@@ -19,10 +19,31 @@
             min-height: 100vh;
             font-family: 'Courier New', monospace;
             color: #fff;
+            overflow-x: auto;
         }
 
         #gameContainer {
             text-align: center;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        #gameContent {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        #leftPanel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 250px;
+        }
+
+        #canvasWrapper {
+            flex-shrink: 0;
         }
 
         canvas {
@@ -33,20 +54,12 @@
             image-rendering: crisp-edges;
         }
 
-        #ui {
-            margin-top: 20px;
-            display: flex;
-            gap: 30px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
         .stat-panel {
             background: #16213e;
-            padding: 15px 25px;
+            padding: 15px 20px;
             border-radius: 8px;
             border: 2px solid #0f3460;
-            min-width: 200px;
+            width: 100%;
         }
 
         .stat-panel h3 {
@@ -272,75 +285,182 @@
         .leaderboard-stats {
             color: #aaa;
         }
+
+        /* Start Page and Death Page */
+        .game-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        .screen-content {
+            background: #16213e;
+            padding: 60px;
+            border-radius: 20px;
+            border: 4px solid #e94560;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .screen-content h1 {
+            color: #e94560;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+        }
+
+        .screen-content p {
+            color: #aaa;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .game-button {
+            background: #4ecca3;
+            color: #1a1a2e;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .game-button:hover {
+            background: #45b393;
+            transform: scale(1.05);
+        }
+
+        .death-stats {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .death-stats h3 {
+            color: #e94560;
+            margin-bottom: 15px;
+        }
+
+        .death-stat {
+            color: #4ecca3;
+            font-size: 18px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
+    <!-- Start Screen -->
+    <div id="startScreen" class="game-screen">
+        <div class="screen-content">
+            <h1>DUNGEON QUEST</h1>
+            <p>A Zelda-inspired dungeon crawler adventure</p>
+            <p style="font-size: 14px;">Clear each floor by defeating all enemies.<br>Progress through increasingly difficult dungeons.<br>How far can you go?</p>
+            <button class="game-button" onclick="startGame()">START ADVENTURE</button>
+        </div>
+    </div>
+
+    <!-- Death Screen -->
+    <div id="deathScreen" class="game-screen" style="display: none;">
+        <div class="screen-content">
+            <h1>YOU DIED</h1>
+            <div class="death-stats">
+                <h3>Final Statistics</h3>
+                <div class="death-stat">Level: <span id="deathLevel">1</span></div>
+                <div class="death-stat">Floor Reached: <span id="deathFloor">1</span></div>
+                <div class="death-stat">Total Kills: <span id="deathKills">0</span></div>
+                <div class="death-stat">Score: <span id="deathScore">0</span></div>
+            </div>
+            <button class="game-button" onclick="restartGame()">TRY AGAIN</button>
+        </div>
+    </div>
+
     <div id="gameContainer">
         <h1 id="gameTitle">DUNGEON QUEST</h1>
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-        <div id="ui">
-            <div class="stat-panel">
-                <h3>Player Stats</h3>
-                <div class="stat">
-                    <span class="stat-label">Level:</span>
-                    <span class="stat-value" id="level">1</span>
+        <div id="gameContent">
+            <!-- Left Panel with Stats -->
+            <div id="leftPanel">
+                <div class="stat-panel">
+                    <h3>Player Stats</h3>
+                    <div class="stat">
+                        <span class="stat-label">Level:</span>
+                        <span class="stat-value" id="level">1</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Health:</span>
+                        <span class="stat-value" id="health">100/100</span>
+                    </div>
+                    <div class="health-bar">
+                        <div class="health-fill" id="healthBar" style="width: 100%"></div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Experience:</span>
+                        <span class="stat-value" id="exp">0/100</span>
+                    </div>
+                    <div class="exp-bar">
+                        <div class="exp-fill" id="expBar" style="width: 0%"></div>
+                    </div>
                 </div>
-                <div class="stat">
-                    <span class="stat-label">Health:</span>
-                    <span class="stat-value" id="health">100/100</span>
+
+                <div class="stat-panel">
+                    <h3>Dungeon Progress</h3>
+                    <div class="stat">
+                        <span class="stat-label">Current Floor:</span>
+                        <span class="stat-value" id="currentFloor">1</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Enemies Cleared:</span>
+                        <span class="stat-value" id="floorProgress">0/10</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Total Kills:</span>
+                        <span class="stat-value" id="kills">0</span>
+                    </div>
                 </div>
-                <div class="health-bar">
-                    <div class="health-fill" id="healthBar" style="width: 100%"></div>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Experience:</span>
-                    <span class="stat-value" id="exp">0/100</span>
-                </div>
-                <div class="exp-bar">
-                    <div class="exp-fill" id="expBar" style="width: 0%"></div>
+
+                <div class="stat-panel">
+                    <h3>Attributes</h3>
+                    <div class="stat">
+                        <span class="stat-label">Strength:</span>
+                        <span class="stat-value" id="strength">10</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Defense:</span>
+                        <span class="stat-value" id="defense">5</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Speed:</span>
+                        <span class="stat-value" id="speed">3</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Attack Range:</span>
+                        <span class="stat-value" id="attackRange">70</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Attack Speed:</span>
+                        <span class="stat-value" id="attackSpeed">100%</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="stat-panel">
-                <h3>Dungeon Progress</h3>
-                <div class="stat">
-                    <span class="stat-label">Current Floor:</span>
-                    <span class="stat-value" id="currentFloor">1</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Enemies Cleared:</span>
-                    <span class="stat-value" id="floorProgress">0/10</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Total Kills:</span>
-                    <span class="stat-value" id="kills">0</span>
+            <!-- Canvas Wrapper -->
+            <div id="canvasWrapper">
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
+                <div id="controls" style="margin-top: 10px;">
+                    <p>WASD or Arrow Keys - Move | Left Click - Attack</p>
                 </div>
             </div>
-
-            <div class="stat-panel">
-                <h3>Attributes</h3>
-                <div class="stat">
-                    <span class="stat-label">Strength:</span>
-                    <span class="stat-value" id="strength">10</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Defense:</span>
-                    <span class="stat-value" id="defense">5</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Speed:</span>
-                    <span class="stat-value" id="speed">3</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">Attack Range:</span>
-                    <span class="stat-value" id="attackRange">70</span>
-                </div>
-            </div>
-        </div>
-
-        <div id="controls">
-            <p>WASD or Arrow Keys - Move | SPACE - Attack</p>
         </div>
 
         <div id="leaderboard">
