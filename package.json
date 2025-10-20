@@ -1,0 +1,13 @@
+{
+  "name": "dungeon-quest",
+  "version": "1.0.0",
+  "description": "A Zelda-inspired dungeon crawler game built with Tauri",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.0"
+  }
+}
