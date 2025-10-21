@@ -28,7 +28,7 @@ class Game {
   private world: World;
   private renderer: PixiRenderer;
   private inputManager: InputManager;
-  private dungeonGenerator: DungeonGenerator;
+  private dungeonGenerator: DungeonGenerator | null = null;
 
   private playerEntity: Entity | null = null;
   private lastTime: number = 0;
@@ -42,7 +42,6 @@ class Game {
     this.world = new World();
     this.renderer = new PixiRenderer();
     this.inputManager = new InputManager(globalEventBus);
-    this.dungeonGenerator = new DungeonGenerator();
   }
 
   /**
@@ -81,6 +80,10 @@ class Game {
     // Setup event listeners
     this.setupEventListeners();
     console.log('✅ Event listeners setup');
+
+    // Create dungeon generator (after data is loaded)
+    this.dungeonGenerator = new DungeonGenerator();
+    console.log('✅ Dungeon generator created');
 
     // Generate dungeon and spawn entities
     this.startNewGame();
@@ -165,6 +168,10 @@ class Game {
    * Start a new game
    */
   private startNewGame(): void {
+    if (!this.dungeonGenerator) {
+      throw new Error('DungeonGenerator not initialized');
+    }
+
     // Clear existing entities
     this.world.clearEntities();
 
@@ -190,6 +197,8 @@ class Game {
    * Spawn initial enemies
    */
   private spawnInitialEnemies(): void {
+    if (!this.dungeonGenerator) return;
+
     const config = gameData.getConfig();
     const playerLevel = this.getPlayerLevel();
 
@@ -299,6 +308,8 @@ class Game {
    * Try to spawn a new enemy
    */
   private trySpawnEnemy(): void {
+    if (!this.dungeonGenerator) return;
+
     const config = gameData.getConfig();
     const entities = this.world.getEntities();
     const enemyCount = entities.filter((e) =>
