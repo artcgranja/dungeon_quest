@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -7,6 +10,9 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    fs: {
+      strict: false,
+    },
   },
 
   // Env variables prefix
@@ -31,5 +37,15 @@ export default defineConfig({
     target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+  },
+
+  // Optimize deps
+  optimizeDeps: {
+    include: ['pixi.js'],
+  },
+
+  // Ensure TypeScript is handled correctly
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' },
   },
 });
