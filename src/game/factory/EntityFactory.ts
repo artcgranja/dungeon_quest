@@ -13,7 +13,9 @@ import {
   SpriteComponent,
   AIComponent,
   PlayerComponent,
-  EnemyComponent
+  EnemyComponent,
+  AnimationComponent,
+  StateMachineComponent
 } from '../../core/ecs/ComponentTypes';
 import type { GameScene } from '../../rendering/scenes/GameScene';
 
@@ -89,6 +91,16 @@ export class EntityFactory {
     );
     this.world.addComponent(entity, new PlayerComponent(1, 0, 100, 10, 0));
 
+    // Add animation and state machine
+    this.world.addComponent(entity, new AnimationComponent('idle'));
+
+    const stateMachine = new StateMachineComponent('idle');
+    stateMachine.transitions.set('idle', ['walking', 'attacking', 'dead']);
+    stateMachine.transitions.set('walking', ['idle', 'attacking', 'dead']);
+    stateMachine.transitions.set('attacking', ['idle', 'walking', 'dead']);
+    stateMachine.transitions.set('dead', []);
+    this.world.addComponent(entity, stateMachine);
+
     return entity;
   }
 
@@ -113,6 +125,15 @@ export class EntityFactory {
     );
     this.world.addComponent(entity, new AIComponent(200, 35, 'chase'));
     this.world.addComponent(entity, new EnemyComponent(type, stats.exp));
+
+    // Add animation and state machine
+    this.world.addComponent(entity, new AnimationComponent('idle'));
+
+    const stateMachine = new StateMachineComponent('idle');
+    stateMachine.transitions.set('idle', ['chasing', 'dead']);
+    stateMachine.transitions.set('chasing', ['idle', 'dead']);
+    stateMachine.transitions.set('dead', []);
+    this.world.addComponent(entity, stateMachine);
 
     return entity;
   }

@@ -7,6 +7,7 @@ import { CombatSystem } from '../../game/systems/CombatSystem';
 import { HealthSystem } from '../../game/systems/HealthSystem';
 import { SpriteSystem } from '../../game/systems/SpriteSystem';
 import { AISystem } from '../../game/systems/AISystem';
+import { AnimationSystem } from '../../game/systems/AnimationSystem';
 import { eventBus } from '../../core/events/EventBus';
 import type { Entity } from '../../core/ecs/Entity';
 import { updateHealth, updateExp, updateLevel, updateStats, updateKills } from '../../ui/stores/gameStore';
@@ -22,6 +23,7 @@ export class GameScene extends Phaser.Scene {
   private healthSystem!: HealthSystem;
   private spriteSystem!: SpriteSystem;
   private aiSystem!: AISystem;
+  private animationSystem!: AnimationSystem;
 
   // Game state
   private dungeon!: Dungeon;
@@ -57,10 +59,12 @@ export class GameScene extends Phaser.Scene {
     this.healthSystem = new HealthSystem();
     this.spriteSystem = new SpriteSystem();
     this.aiSystem = new AISystem();
+    this.animationSystem = new AnimationSystem();
 
     this.world.addSystem(this.movementSystem);
     this.world.addSystem(this.combatSystem);
     this.world.addSystem(this.healthSystem);
+    this.world.addSystem(this.animationSystem);
     this.world.addSystem(this.spriteSystem);
     this.world.addSystem(this.aiSystem);
 

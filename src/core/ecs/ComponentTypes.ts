@@ -133,6 +133,51 @@ export class EnemyComponent extends BaseComponent {
 }
 
 /**
+ * Animation Component - Visual animation state
+ */
+export class AnimationComponent extends BaseComponent {
+  readonly type = 'Animation' as const;
+
+  constructor(
+    public currentState: string = 'idle',
+    public previousState: string = 'idle',
+    public stateTime: number = 0,
+    public frameIndex: number = 0
+  ) {
+    super();
+  }
+}
+
+/**
+ * State Machine Component - Entity state management
+ */
+export class StateMachineComponent extends BaseComponent {
+  readonly type = 'StateMachine' as const;
+
+  constructor(
+    public currentState: string = 'idle',
+    public previousState: string = 'idle',
+    public transitions: Map<string, string[]> = new Map()
+  ) {
+    super();
+  }
+
+  canTransition(to: string): boolean {
+    const allowedTransitions = this.transitions.get(this.currentState);
+    return allowedTransitions?.includes(to) ?? false;
+  }
+
+  transition(to: string): boolean {
+    if (this.canTransition(to) || this.transitions.size === 0) {
+      this.previousState = this.currentState;
+      this.currentState = to;
+      return true;
+    }
+    return false;
+  }
+}
+
+/**
  * Type guard helpers
  */
 export type ComponentTypeMap = {
@@ -144,6 +189,8 @@ export type ComponentTypeMap = {
   AI: AIComponent;
   Player: PlayerComponent;
   Enemy: EnemyComponent;
+  Animation: AnimationComponent;
+  StateMachine: StateMachineComponent;
 };
 
 export type ComponentTypeName = keyof ComponentTypeMap;
