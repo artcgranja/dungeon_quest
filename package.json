@@ -1,13 +1,24 @@
 {
   "name": "dungeon-quest",
-  "version": "1.0.0",
-  "description": "A Zelda-inspired dungeon crawler game built with Tauri",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "A roguelike dungeon crawler with ECS architecture built with Tauri + PixiJS + TypeScript",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
     "tauri": "tauri",
-    "dev": "tauri dev",
-    "build": "tauri build"
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "pixi.js": "^8.14.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.9.0"
+    "@tauri-apps/cli": "^2.9.0",
+    "@types/node": "^20.11.19",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.3"
   }
 }

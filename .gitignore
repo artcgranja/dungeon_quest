@@ -2,6 +2,10 @@
 node_modules/
 package-lock.json
 
+# Build outputs
+dist/
+dist-ssr/
+
 # Tauri build outputs
 src-tauri/target/
 src-tauri/Cargo.lock
@@ -20,3 +24,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Backups
+*.backup
