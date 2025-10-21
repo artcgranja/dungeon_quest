@@ -17,31 +17,37 @@ A top-down action RPG inspired by classic Zelda games. Fight monsters in procedu
 
 ### Running the Game
 
-**Option 1: Tauri Desktop App (Recommended)**
-
-This project is now configured as a Tauri application for a native desktop experience!
+**Option 1: Web Development Mode**
 
 1. **Install dependencies:**
    ```bash
    npm install
    ```
 
-2. **Run in development mode:**
+2. **Run Vite dev server:**
    ```bash
    npm run dev
    ```
-   This will open the game in a native desktop window with developer tools.
+   Open http://localhost:5173 in your browser
 
-3. **Build for production:**
+3. **Type check:**
    ```bash
-   npm run build
+   npm run type-check
+   ```
+
+**Option 2: Tauri Desktop App**
+
+1. **Run in desktop mode:**
+   ```bash
+   npm run tauri:dev
+   ```
+   This will open the game in a native desktop window
+
+2. **Build for production:**
+   ```bash
+   npm run tauri:build
    ```
    The installer will be created in `src-tauri/target/release/bundle/`
-
-**Option 2: Web Browser**
-
-1. Open `index.html` in a modern web browser (Chrome, Firefox, Safari, Edge)
-2. The game will start automatically
 
 ### Controls
 
@@ -86,8 +92,10 @@ This project is now configured as a Tauri application for a native desktop exper
 ## Technical Details
 
 ### Frontend
-- Built with HTML5 Canvas and vanilla JavaScript
-- No frontend frameworks or dependencies
+- **Phaser 3**: 2D game rendering engine
+- **TypeScript**: Type-safe game logic
+- **Svelte 5**: Reactive UI components
+- **Vite**: Fast build tool and dev server
 - Responsive UI with real-time stat updates
 - Works both as a web app and desktop app
 
@@ -106,43 +114,79 @@ This project is now configured as a Tauri application for a native desktop exper
   - **macOS:** Xcode Command Line Tools
   - **Windows:** Microsoft Visual Studio C++ Build Tools
 
-## Future Enhancements
+## Refactoring Roadmap
 
-Potential features for future versions:
-- Sound effects and background music
-- Different weapon types
-- Health potions and power-ups
-- Multiple dungeon rooms/levels
-- Boss battles
+### ✅ Phase 0: Setup (COMPLETED)
+- Vite + TypeScript + Phaser 3 + Svelte integration
+- Project structure
+- Basic game port from vanilla JS to TypeScript
+
+### 🔄 Phase 1: Core Layer (NEXT)
+- ECS (Entity-Component-System) implementation
+- EventBus for decoupled communication
+- Utilities (Random, Vector2D, ObjectPool)
+
+### ⏳ Phase 2: Rendering Separation
+- Decouple rendering from game logic
+- Sprite and Animation systems
+
+### ⏳ Phase 3: Core Systems
+- Movement, Combat, Collision systems
+- Input manager with Command pattern
+- State machines
+
+### ⏳ Phase 4: Data-Driven Design
+- JSON configs for enemies, items, loot tables
+- Easy balancing without recompilation
+
+### ⏳ Phase 5: AI & Procedural Generation
+- Advanced AI with behavior trees
+- Improved dungeon generation (BSP/cellular automata)
+- Boss rooms and difficulty scaling
+
+### ⏳ Phase 6: Polish & Features
+- Particle effects
+- Sound system
+- Inventory & items
+- Dash ability
 - Save/load system
-- More enemy varieties
-- Special abilities and magic
+- Skill tree
 
 ## Project Structure
 
 ```
 dungeon_quest/
-├── index.html          # Main game HTML file
-├── game.js             # Game logic and engine
-├── package.json        # NPM configuration
-├── src-tauri/          # Tauri desktop app configuration
-│   ├── src/
-│   │   ├── main.rs     # Rust main entry point
-│   │   └── lib.rs      # Tauri app setup
-│   ├── Cargo.toml      # Rust dependencies
-│   ├── tauri.conf.json # Tauri configuration
-│   ├── build.rs        # Build script
-│   ├── icons/          # App icons
-│   └── capabilities/   # Tauri permissions
-└── README.md
+├── src/
+│   ├── core/              # Core ECS and utilities (Phase 1+)
+│   ├── game/              # Game logic
+│   │   ├── Player.ts      # Player class
+│   │   ├── Enemy.ts       # Enemy class
+│   │   ├── Dungeon.ts     # Dungeon generation
+│   │   └── managers/      # Game managers
+│   ├── rendering/         # Rendering layer
+│   │   └── scenes/
+│   │       └── GameScene.ts  # Main Phaser scene
+│   ├── ui/                # Svelte UI components
+│   │   ├── App.svelte     # Main app component
+│   │   ├── components/    # UI components
+│   │   └── stores/        # Svelte stores
+│   └── main.ts            # Entry point
+├── src-tauri/             # Tauri configuration
+├── index.html             # HTML entry point
+├── vite.config.ts         # Vite configuration
+├── tsconfig.json          # TypeScript configuration
+└── package.json           # NPM configuration
 ```
 
 ## Credits
 
-Created as a Zelda-inspired dungeon crawler game using HTML5 Canvas and Tauri.
+A roguelike dungeon crawler being refactored to modern architecture.
 
-- **Game Engine:** HTML5 Canvas with vanilla JavaScript
+- **Game Engine:** Phaser 3
+- **Language:** TypeScript
+- **UI Framework:** Svelte 5
+- **Build Tool:** Vite
 - **Desktop Framework:** Tauri v2
-- **Inspiration:** Classic top-down Zelda games
+- **Inspiration:** Classic roguelikes and Zelda games
 
 Enjoy your adventure in the dungeon!
