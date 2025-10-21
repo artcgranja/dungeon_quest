@@ -1,13 +1,35 @@
 import Phaser from 'phaser';
-import { Player } from '../../game/Player';
-import { Enemy } from '../../game/Enemy';
 import { Dungeon } from '../../game/Dungeon';
+import { World } from '../../core/ecs/World';
+import { EntityFactory } from '../../game/factory/EntityFactory';
+import { MovementSystem } from '../../game/systems/MovementSystem';
+import { CombatSystem } from '../../game/systems/CombatSystem';
+import { HealthSystem } from '../../game/systems/HealthSystem';
+import { SpriteSystem } from '../../game/systems/SpriteSystem';
+import { AISystem } from '../../game/systems/AISystem';
+import { eventBus } from '../../core/events/EventBus';
+import type { Entity } from '../../core/ecs/Entity';
 import { updateHealth, updateExp, updateLevel, updateStats, updateKills } from '../../ui/stores/gameStore';
 
 export class GameScene extends Phaser.Scene {
-  private player!: Player;
-  private enemies: Enemy[] = [];
+  // ECS World
+  private world!: World;
+  private factory!: EntityFactory;
+
+  // Systems
+  private movementSystem!: MovementSystem;
+  private combatSystem!: CombatSystem;
+  private healthSystem!: HealthSystem;
+  private spriteSystem!: SpriteSystem;
+  private aiSystem!: AISystem;
+
+  // Game state
   private dungeon!: Dungeon;
+  private playerEntity!: Entity;
+  private enemyEntities: Entity[] = [];
+  private monstersKilled = 0;
+
+  // Input
   private keys!: {
     w: Phaser.Input.Keyboard.Key;
     a: Phaser.Input.Keyboard.Key;
@@ -19,21 +41,45 @@ export class GameScene extends Phaser.Scene {
     right: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
   };
-  private monstersKilled = 0;
 
   constructor() {
     super({ key: 'GameScene' });
   }
 
   create() {
+    // Create ECS World
+    this.world = new World();
+    this.factory = new EntityFactory(this, this.world);
+
+    // Create and register systems
+    this.movementSystem = new MovementSystem();
+    this.combatSystem = new CombatSystem();
+    this.healthSystem = new HealthSystem();
+    this.spriteSystem = new SpriteSystem();
+    this.aiSystem = new AISystem();
+
+    this.world.addSystem(this.movementSystem);
+    this.world.addSystem(this.combatSystem);
+    this.world.addSystem(this.healthSystem);
+    this.world.addSystem(this.spriteSystem);
+    this.world.addSystem(this.aiSystem);
+
     // Create dungeon
     this.dungeon = new Dungeon(this, 800, 600, 40);
 
-    // Create player
-    this.player = new Player(this, 400, 300);
+    // Set dungeon reference in systems
+    this.movementSystem.setDungeon(this.dungeon);
+    this.aiSystem.setDungeon(this.dungeon);
+
+    // Create player entity
+    this.playerEntity = this.factory.createPlayer(400, 300);
+    this.aiSystem.setPlayerEntity(this.playerEntity.id);
 
     // Spawn initial enemies
     this.spawnInitialEnemies();
+
+    // Setup event listeners
+    this.setupEventListeners();
 
     // Setup input
     this.keys = {
@@ -49,7 +95,7 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.keys.space.on('down', () => {
-      this.player.attack(this.enemies);
+      this.handleAttack();
     });
 
     // Initial UI update
@@ -60,28 +106,15 @@ export class GameScene extends Phaser.Scene {
     // Handle input
     this.handleInput();
 
-    // Update player
-    this.player.update(delta);
+    // Update ECS World (all systems)
+    this.world.update(delta);
 
-    // Update enemies
-    this.enemies.forEach(enemy => {
-      enemy.update(this.player);
-    });
-
-    // Remove dead enemies
-    this.enemies = this.enemies.filter(enemy => {
-      if (!enemy.alive) {
-        this.monstersKilled++;
-        this.player.gainExperience(enemy.exp);
-        this.updateUI();
-        enemy.destroy();
-        return false;
-      }
-      return true;
-    });
+    // Cleanup dead entities
+    this.cleanupDeadEntities();
 
     // Spawn more enemies if too few
-    if (this.enemies.length < 3) {
+    const aliveEnemies = this.enemyEntities.filter(e => e.active).length;
+    if (aliveEnemies < 3) {
       this.spawnRandomEnemy();
     }
   }
@@ -95,17 +128,36 @@ export class GameScene extends Phaser.Scene {
     if (this.keys.a.isDown || this.keys.left.isDown) dx -= 1;
     if (this.keys.d.isDown || this.keys.right.isDown) dx += 1;
 
-    if (dx !== 0 || dy !== 0) {
-      // Normalize diagonal movement
-      const length = Math.sqrt(dx * dx + dy * dy);
-      dx /= length;
-      dy /= length;
-      this.player.move(dx, dy, this.dungeon);
+    // Set player velocity
+    const movement = this.world.getComponent(this.playerEntity, 'Movement');
+    if (movement) {
+      if (dx !== 0 || dy !== 0) {
+        // Normalize diagonal movement
+        const length = Math.sqrt(dx * dx + dy * dy);
+        movement.velocityX = dx / length;
+        movement.velocityY = dy / length;
+      } else {
+        movement.velocityX = 0;
+        movement.velocityY = 0;
+      }
     }
   }
 
+  private handleAttack() {
+    // Get all enemy entity IDs
+    const enemyIds = this.enemyEntities.filter(e => e.active).map(e => e.id);
+
+    // Process attack through combat system
+    this.combatSystem.processAttack(this.playerEntity.id, enemyIds);
+  }
+
   private spawnInitialEnemies() {
-    const enemyTypes: ('slime' | 'goblin' | 'skeleton' | 'demon')[] = ['slime', 'slime', 'goblin', 'skeleton'];
+    const enemyTypes: ('slime' | 'goblin' | 'skeleton' | 'demon')[] = [
+      'slime',
+      'slime',
+      'goblin',
+      'skeleton'
+    ];
 
     for (let i = 0; i < 5; i++) {
       const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
@@ -126,26 +178,125 @@ export class GameScene extends Phaser.Scene {
     } while (this.dungeon.isWall(x, y, 25, 25) && attempts < maxAttempts);
 
     if (attempts < maxAttempts) {
-      // Scale enemy type based on player level
-      if (!type) {
-        if (this.player.level >= 5) {
-          type = Math.random() < 0.5 ? 'skeleton' : 'goblin';
-        } else if (this.player.level >= 3) {
-          type = Math.random() < 0.5 ? 'goblin' : 'slime';
-        } else {
-          type = Math.random() < 0.7 ? 'slime' : 'goblin';
-        }
-      }
+      // Get player level
+      const playerComponent = this.world.getComponent(this.playerEntity, 'Player');
+      const playerLevel = playerComponent?.level || 1;
 
-      this.enemies.push(new Enemy(this, x, y, type));
+      // Create enemy
+      const enemy = type
+        ? this.factory.createEnemy(x, y, type)
+        : this.factory.createRandomEnemy(x, y, playerLevel);
+
+      this.enemyEntities.push(enemy);
     }
   }
 
+  private cleanupDeadEntities() {
+    this.enemyEntities = this.enemyEntities.filter(entity => {
+      if (!entity.active) {
+        // Destroy graphics
+        const sprite = this.world.getComponent(entity, 'Sprite');
+        if (sprite) {
+          sprite.graphics.destroy();
+        }
+
+        // Remove from world
+        this.world.removeEntity(entity);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private setupEventListeners() {
+    // Listen to enemy killed events
+    eventBus.on('enemy:killed', (data) => {
+      this.monstersKilled++;
+
+      // Give player experience
+      const playerComponent = this.world.getComponent(this.playerEntity, 'Player');
+      if (playerComponent) {
+        playerComponent.experience += data.expReward;
+
+        // Check for level up
+        if (playerComponent.experience >= playerComponent.experienceToNextLevel) {
+          this.handleLevelUp();
+        }
+
+        this.updateUI();
+      }
+    });
+
+    // Listen to entity died events
+    eventBus.on('entity:died', (data) => {
+      // Check if it's the player
+      if (data.entity === this.playerEntity) {
+        alert('Game Over! You have been defeated. Reloading...');
+        window.location.reload();
+      }
+    });
+
+    // Listen to health changed events to update UI
+    eventBus.on('health:changed', (data) => {
+      if (data.entity === this.playerEntity) {
+        this.updateUI();
+      }
+    });
+  }
+
+  private handleLevelUp() {
+    const playerComponent = this.world.getComponent(this.playerEntity, 'Player');
+    const playerHealth = this.world.getComponent(this.playerEntity, 'Health');
+    const playerCombat = this.world.getComponent(this.playerEntity, 'Combat');
+    const playerMovement = this.world.getComponent(this.playerEntity, 'Movement');
+
+    if (!playerComponent || !playerHealth || !playerCombat || !playerMovement) return;
+
+    // Level up
+    playerComponent.level++;
+    playerComponent.experience -= playerComponent.experienceToNextLevel;
+    playerComponent.experienceToNextLevel = Math.floor(
+      playerComponent.experienceToNextLevel * 1.5
+    );
+
+    // Automatic stat increases
+    playerHealth.max += 20;
+    playerHealth.current = playerHealth.max;
+    playerCombat.damage += 3;
+    playerCombat.defense += 2;
+    playerMovement.speed += 0.2;
+    playerComponent.strength += 3;
+
+    // Grant upgrade points
+    playerComponent.upgradePoints += 3;
+
+    // Show notification
+    console.log(`LEVEL UP! Now Level ${playerComponent.level}`);
+
+    // Emit level up event
+    eventBus.emit('player:levelup', {
+      player: this.playerEntity,
+      level: playerComponent.level,
+      newStrength: playerComponent.strength,
+      newDefense: playerCombat.defense,
+      newSpeed: playerMovement.speed
+    });
+
+    this.updateUI();
+  }
+
   public updateUI() {
-    updateHealth(this.player.health, this.player.maxHealth);
-    updateExp(this.player.experience, this.player.experienceToNextLevel);
-    updateLevel(this.player.level);
-    updateStats(this.player.strength, this.player.defense, this.player.speed);
+    const playerComponent = this.world.getComponent(this.playerEntity, 'Player');
+    const playerHealth = this.world.getComponent(this.playerEntity, 'Health');
+    const playerCombat = this.world.getComponent(this.playerEntity, 'Combat');
+    const playerMovement = this.world.getComponent(this.playerEntity, 'Movement');
+
+    if (!playerComponent || !playerHealth || !playerCombat || !playerMovement) return;
+
+    updateHealth(playerHealth.current, playerHealth.max);
+    updateExp(playerComponent.experience, playerComponent.experienceToNextLevel);
+    updateLevel(playerComponent.level);
+    updateStats(playerComponent.strength, playerCombat.defense, playerMovement.speed);
     updateKills(this.monstersKilled);
   }
 
