@@ -45,17 +45,23 @@ export class PlayerRenderer implements EntityRenderer {
       );
     }
 
-    // Draw attack animation
+    // Draw attack animation with sword swing
     const combat = world.getComponent(entity, 'Combat');
     if (combat?.isAttacking && combat.attackAnimationTime > 0) {
       if (movement) {
-        DrawingUtils.drawAttackArc(
+        // Calculate swing progress (0 = start, 1 = end)
+        // attackAnimationTime starts at 300 and decreases to 0
+        const totalAnimationTime = 300;
+        const progress = 1 - (combat.attackAnimationTime / totalAnimationTime);
+
+        DrawingUtils.drawSwordSwing(
           graphics,
           transform.x,
           transform.y,
           transform.width,
           transform.height,
           movement.direction,
+          progress,
           combat.attackRange
         );
       }
